@@ -1925,8 +1925,11 @@ body.paused::after {
     for (const len of SHIPS) randomPlace(b, len);
   }
 
-  function alive(b) {
-    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (b[y][x] === 1) return true;
+  function alive(b, hits) {
+    // клетка корабля жива, пока она === 1 и по ней ещё не попали (hits != 2)
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      if (b[y][x] === 1 && (!hits || hits[y][x] !== 2)) return true;
+    }
     return false;
   }
 
@@ -1949,14 +1952,16 @@ body.paused::after {
       function updateHud() {
         host.onHud(
           'Выстрелов: <b>' + shots + '</b> · Попаданий: <b>' + hits + '</b>' +
-          ' · Врагов: <b>' + countAlive(enemy) + '</b>' +
-          ' · Моих: <b>' + countAlive(my) + '</b>'
+          ' · Врагов: <b>' + countAlive(enemy, enemyHits) + '</b>' +
+          ' · Моих: <b>' + countAlive(my, myHits) + '</b>'
         );
       }
 
-      function countAlive(b) {
+      function countAlive(b, hits) {
         let n = 0;
-        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (b[y][x] === 1) n++;
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          if (b[y][x] === 1 && (!hits || hits[y][x] !== 2)) n++;
+        }
         return n;
       }
 
@@ -2018,8 +2023,10 @@ body.paused::after {
         if (enemy[y][x] === 1) {
           enemyHits[y][x] = 2; hits++;
           QA.sfx.step();
-          if (!alive(enemy)) {
+          if (!alive(enemy, enemyHits)) {
             over = true;
+            updateHud();
+            draw();
             QA.sfx.win();
             host.onEnd(scoreFromBoard(), {});
             return;
@@ -2056,8 +2063,10 @@ body.paused::after {
           // в очередь — соседи
           for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) enemyQueue.push([tx+dx, ty+dy]);
           QA.sfx.bad();
-          if (!alive(my)) {
+          if (!alive(my, myHits)) {
             over = true;
+            updateHud();
+            draw();
             QA.sfx.lose();
             host.onEnd(scoreFromBoard(), {});
             return;
@@ -2071,7 +2080,7 @@ body.paused::after {
       }
 
       function scoreFromBoard() {
-        return hits * 10 + (over && !alive(enemy) ? 100 : 0);
+        return hits * 10 + (over && !alive(enemy, enemyHits) ? 100 : 0);
       }
 
       function reset() {
@@ -2114,7 +2123,23 @@ body.paused::after {
             for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
               if (enemy[y][x] === 1) { enemyHits[y][x] = 2; hits++; }
             }
-            over = true; host.onEnd(scoreFromBoard(), {});
+            over = true; updateHud(); draw(); host.onEnd(scoreFromBoard(), {});
+          },
+          // Честный путь поражения: все корабли подбиты, кроме последнего;
+          // ставим последний в очередь ИИ → enemyTurn() попадает → alive(my,myHits)=false.
+          forceLose: () => {
+            let lastCell = null;
+            for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+              if (my[y][x] === 1) {
+                if (lastCell === null) { lastCell = [x, y]; }
+                else { myHits[y][x] = 2; }
+              }
+            }
+            if (!lastCell) return false;
+            enemyQueue.length = 0;
+            enemyQueue.push(lastCell);
+            enemyTurn();
+            return over;
           },
         },
       };
