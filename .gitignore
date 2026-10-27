@@ -17,3 +17,16 @@ __pycache__/
 Thumbs.db
 # release artefacts (use GitHub Releases)
 /dist/
+
+# ad-hoc debug scripts (11D, 12D)
+fix_*.py
+fix_bs_*.py
+test_bs_*.js
+test_battleship_*.js
+push_github.py
+release.py
+update_release.py
+verify_gh.py
+verify_release.py
+DONE.md
+FIX_BATTLESHIP.md
