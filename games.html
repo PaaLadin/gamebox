@@ -1,0 +1,2474 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>GameBox — сборник игр</title>
+<style>
+/* GameBox CRT — палитра ROADMAP_TEMPLATE v2.0 */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0a12;
+  --panel: #161b22;
+  --fg: #c9d1d9;
+  --phos: #2ecc71;
+  --acc: #58a6ff;
+  --warn: #d29922;
+  --err: #f85149;
+  --bord: #30363d;
+  --dim: #8b949e;
+}
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.5 Consolas, "Courier New", monospace;
+  overflow: hidden;
+  user-select: none;
+}
+#app {
+  display: flex; flex-direction: column;
+  height: 100vh;
+}
+header {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--bord);
+  background: var(--panel);
+  display: flex; align-items: center; gap: 16px;
+  flex: 0 0 auto;
+}
+header h1 {
+  font-size: 16px; letter-spacing: 4px; color: var(--phos);
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(46,204,113,.4);
+}
+header .hud {
+  margin-left: auto; display: flex; gap: 12px; align-items: center;
+  font-size: 13px; color: var(--dim);
+}
+header .hud b { color: var(--phos); }
+header button {
+  font: inherit; padding: 4px 12px;
+  background: transparent; color: var(--fg);
+  border: 1px solid var(--bord); border-radius: 3px;
+  cursor: pointer;
+}
+header button:hover { border-color: var(--acc); color: var(--acc); }
+
+main {
+  flex: 1 1 auto; display: flex;
+  overflow: hidden;
+}
+#screen-menu {
+  flex: 1; padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+  align-content: start;
+  overflow-y: auto;
+}
+#screen-menu.hidden { display: none; }
+.tile {
+  background: var(--panel);
+  border: 1px solid var(--bord);
+  border-radius: 8px;
+  padding: 16px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s, transform .1s;
+}
+.tile:hover { border-color: var(--phos); transform: translateY(-2px); }
+.tile .icon {
+  font-size: 32px; color: var(--phos);
+  margin-bottom: 8px; display: block;
+  min-height: 40px;
+}
+.tile .name { font-weight: 700; letter-spacing: 1px; }
+.tile .best {
+  margin-top: 6px; font-size: 11px; color: var(--dim);
+}
+.tile .best b { color: var(--acc); }
+
+#screen-game {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+}
+#screen-game.on { display: flex; }
+#screen-menu.hidden ~ #screen-game.on {
+  display: flex;
+}
+#game-bar {
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--bord);
+  background: var(--panel);
+  display: flex; align-items: center; gap: 12px;
+  flex: 0 0 auto;
+}
+#game-bar .title { font-weight: 700; color: var(--phos); }
+#game-bar .hud { margin-left: auto; display: flex; gap: 16px; font-size: 12px; color: var(--dim); }
+#game-bar .hud b { color: var(--fg); }
+#game-bar button {
+  font: inherit; padding: 3px 10px;
+  background: transparent; color: var(--fg);
+  border: 1px solid var(--bord); border-radius: 3px;
+  cursor: pointer;
+}
+#game-bar button:hover { border-color: var(--acc); color: var(--acc); }
+#game-stage {
+  flex: 1 1 auto;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  padding: 10px;
+  position: relative;
+}
+#game-stage canvas {
+  max-width: 100%;
+  max-height: 100%;
+  border: 1px solid var(--bord);
+  border-radius: 6px;
+  background: #050510;
+  image-rendering: pixelated;
+  touch-action: none;
+}
+/* Верхний слой: лидерборд */
+#overlay {
+  position: absolute; inset: 0;
+  background: rgba(10,10,18,.92);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 100;
+}
+#overlay.on { display: flex; }
+#overlay .box {
+  background: var(--panel);
+  border: 1px solid var(--bord);
+  border-radius: 8px;
+  padding: 20px 28px;
+  min-width: 320px;
+  max-width: 90vw;
+}
+#overlay .box h2 {
+  color: var(--phos); font-size: 18px; letter-spacing: 4px;
+  text-align: center; margin-bottom: 12px;
+}
+#overlay .box table { width: 100%; font-size: 13px; border-collapse: collapse; }
+#overlay .box th, #overlay .box td { padding: 4px 10px; text-align: left; }
+#overlay .box th { color: var(--dim); border-bottom: 1px solid var(--bord); }
+#overlay .box tr.me td { color: var(--phos); }
+#overlay .box .actions {
+  margin-top: 16px; text-align: center; display: flex; gap: 8px; justify-content: center;
+}
+#overlay .box .actions button {
+  font: inherit; padding: 6px 16px;
+  background: transparent; color: var(--phos);
+  border: 1px solid var(--phos); border-radius: 3px; cursor: pointer;
+}
+#overlay .box .actions button:hover { background: rgba(46,204,113,.12); }
+
+/* ПАУЗА */
+body.paused::after {
+  content: "ПАУЗА";
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55);
+  color: var(--phos);
+  font: 700 48px Consolas, monospace;
+  letter-spacing: 16px;
+  z-index: 200;
+  pointer-events: none;
+}
+
+/* МОБИЛЬНЫЙ */
+@media (max-width: 640px) {
+  header { padding: 6px 10px; gap: 8px; }
+  header h1 { font-size: 13px; letter-spacing: 2px; }
+  header .hud { font-size: 11px; gap: 6px; }
+  header button { padding: 3px 8px; font-size: 12px; }
+  #screen-menu { padding: 10px; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
+  .tile { padding: 10px 6px; }
+  .tile .icon { font-size: 24px; min-height: 28px; margin-bottom: 4px; }
+  .tile .name { font-size: 12px; }
+  #game-bar { padding: 4px 8px; gap: 6px; }
+  #game-bar .title { font-size: 12px; }
+  #game-bar .hud { font-size: 10px; gap: 8px; }
+  #game-stage { padding: 4px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>GAMEBOX</h1>
+    <div class="hud" id="game-hud"></div>
+    <button id="qa-board" title="Рекорды">★</button>
+    <button id="qa-pause" title="Пауза (Space)">⏸</button>
+    <button id="qa-mute" title="Звук (M)">🔊</button>
+    <button id="qa-menu" title="В меню">☰</button>
+  </header>
+  <main>
+    <div id="screen-menu"></div>
+    <div id="screen-game">
+      <div id="game-bar">
+        <span class="title" id="game-title"></span>
+        <div class="hud" id="game-hud2"></div>
+      </div>
+      <div id="game-stage"></div>
+      <div id="overlay"></div>
+    </div>
+  </main>
+</div>
+<script>
+// GameBox QA — звук, лидерборд, пауза, storage, утилиты.
+(() => {
+  // --- Storage ---
+  const NS = 'gamebox_v1';
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(NS + '_' + k); return v === null ? d : JSON.parse(v); } catch(_) { return d; } },
+    set(k, v) { try { localStorage.setItem(NS + '_' + k, JSON.stringify(v)); } catch(_) {} },
+    del(k) { try { localStorage.removeItem(NS + '_' + k); } catch(_) {} }
+  };
+
+  // --- Лидерборд ---
+  const LB_KEY = 'leaderboard';
+  function getBoard(game) {
+    const all = store.get(LB_KEY, {});
+    return all[game] || [];
+  }
+  function submitScore(game, score, meta) {
+    const all = store.get(LB_KEY, {});
+    const arr = all[game] || [];
+    const entry = { score: Math.round(score), date: Date.now(), meta: meta || null };
+    arr.push(entry);
+    arr.sort((a, b) => b.score - a.score);
+    all[game] = arr.slice(0, 10);
+    store.set(LB_KEY, all);
+    const idx = all[game].findIndex(e => e === entry);
+    return { rank: idx >= 0 ? idx + 1 : null, top: all[game] };
+  }
+  function bestScore(game) {
+    const arr = getBoard(game);
+    return arr.length ? arr[0].score : 0;
+  }
+
+  // --- Аудио (WebAudio, без сэмплов) ---
+  const AC = window.AudioContext || window.webkitAudioContext;
+  let actx = null, muted = store.get('muted', false);
+  function ensure() {
+    if (!actx && AC) { try { actx = new AC(); } catch(_) {} }
+    if (actx && actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+  function tone(freq, dur, type, gain, delay) {
+    if (muted) return;
+    const a = ensure(); if (!a) return;
+    const t0 = a.currentTime + (delay || 0);
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type || 'square';
+    o.frequency.value = freq || 440;
+    g.gain.value = gain === undefined ? 0.07 : gain;
+    o.connect(g); g.connect(a.destination);
+    g.gain.setValueAtTime(g.gain.value, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + (dur || 0.12));
+    o.start(t0); o.stop(t0 + (dur || 0.12) + 0.02);
+  }
+  const sfx = {
+    click: () => tone(660, 0.05, 'square', 0.05),
+    move: () => tone(440, 0.06, 'triangle', 0.06),
+    good: () => { tone(660, 0.08); tone(880, 0.10, 'sine', 0.07, 0.08); },
+    bad: () => tone(180, 0.18, 'sawtooth', 0.08),
+    win: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.16, 'sine', 0.09, i * 0.10)); },
+    lose: () => { [440, 330, 220].forEach((f, i) => tone(f, 0.20, 'sawtooth', 0.07, i * 0.12)); },
+    step: () => tone(880, 0.03, 'square', 0.03)
+  };
+  function toggleMute() {
+    muted = !muted; store.set('muted', muted);
+    const b = document.getElementById('qa-mute');
+    if (b) b.textContent = muted ? '🔇' : '🔊';
+    if (!muted) sfx.click();
+    return muted;
+  }
+
+  // --- Пауза ---
+  let paused = false;
+  const pauseHooks = [];
+  function togglePause() {
+    paused = !paused;
+    document.body.classList.toggle('paused', paused);
+    const b = document.getElementById('qa-pause');
+    if (b) b.textContent = paused ? '▶' : '⏸';
+    for (const f of pauseHooks) try { f(paused); } catch(_) {}
+  }
+  function onPause(fn) { pauseHooks.push(fn); }
+
+  // --- Мобильный canvas-fit ---
+  function fitCanvas(cv) {
+    if (!cv) return;
+    const stage = cv.parentElement;
+    if (!stage) return;
+    const maxW = stage.clientWidth - 8;
+    const maxH = stage.clientHeight - 8;
+    const s = Math.min(maxW / cv.width, maxH / cv.height, 1);
+    cv.style.width = Math.round(cv.width * s) + 'px';
+    cv.style.height = Math.round(cv.height * s) + 'px';
+  }
+
+  // --- Публичный API ---
+  window.QA = {
+    store, getBoard, submitScore, bestScore,
+    sfx, tone, isMuted: () => muted, toggleMute,
+    isPaused: () => paused, togglePause, onPause,
+    fitCanvas,
+  };
+
+  // --- Обработчик клавиш: M — mute, Space — pause (если не в форме) ---
+  document.addEventListener('keydown', (e) => {
+    if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    if (e.key === 'm' || e.key === 'M' || e.key === 'ь' || e.key === 'Ь') { toggleMute(); }
+    if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); togglePause(); }
+  });
+
+  // --- Один жест разрешает AudioContext ---
+  document.addEventListener('pointerdown', () => { if (!muted) ensure(); }, { once: true });
+})();
+// GameBox shell — меню, роутинг, HUD, лидерборд, контракт игр.
+(() => {
+  const GAMES = [];   // заполняется GB.register()
+  let current = null; // {id, api, cleanup}
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+  // ======= Регистрация игр =======
+  window.GB = {
+    register(def) {
+      if (!def || !def.id) throw new Error('GB.register: no id');
+      GAMES.push(def);
+    },
+    list: () => GAMES.slice(),
+    startGame: (id) => launchGame(id),
+    goMenu: () => showMenu(),
+    getState: () => current ? { id: current.id, api: current.api } : null,
+  };
+
+  // ======= Меню =======
+  function buildMenu() {
+    const grid = $('#screen-menu');
+    grid.innerHTML = '';
+    for (const g of GAMES) {
+      const best = QA.bestScore(g.id);
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.dataset.id = g.id;
+      tile.innerHTML =
+        '<span class="icon">' + (g.icon || '◆') + '</span>' +
+        '<div class="name">' + escapeHtml(g.name) + '</div>' +
+        '<div class="best">' + (best ? 'рекорд: <b>' + best + '</b>' : '—') + '</div>';
+      tile.addEventListener('click', () => { QA.sfx.click(); launchGame(g.id); });
+      grid.appendChild(tile);
+    }
+    $('#qa-mute').textContent = QA.isMuted() ? '🔇' : '🔊';
+  }
+  function escapeHtml(s) { return String(s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
+
+  function showMenu() {
+    if (current) { try { current.cleanup && current.cleanup(); } catch(_) {} current = null; }
+    $('#screen-game').classList.remove('on');
+    $('#screen-menu').classList.remove('hidden');
+    $('#overlay').classList.remove('on');
+    buildMenu();
+    document.body.classList.remove('paused');
+  }
+
+  // ======= Игра =======
+  function launchGame(id) {
+    const def = GAMES.find(g => g.id === id);
+    if (!def) { console.warn('no game', id); return; }
+    if (current) { try { current.cleanup && current.cleanup(); } catch(_) {} current = null; }
+
+    $('#screen-menu').classList.add('hidden');
+    $('#screen-game').classList.add('on');
+    $('#overlay').classList.remove('on');
+    $('#game-title').textContent = def.name;
+    $('#game-hud').innerHTML = '';
+    const stage = $('#game-stage');
+    stage.innerHTML = '';
+
+    const api = def.create(stage, {
+      onHud(html) { $('#game-hud').innerHTML = html; },
+      onScore(score) { api._score = score; },
+      onEnd(score, meta) { endGame(def, score, meta); },
+    });
+    current = { id, api, cleanup: api.destroy };
+    try { api.start(); } catch (e) { console.error(e); }
+    // вписать canvas в viewport
+    const cv = stage.querySelector('canvas');
+    if (cv) QA.fitCanvas(cv);
+    document.body.classList.remove('paused');
+  }
+
+  function endGame(def, score, meta) {
+    const res = QA.submitScore(def.id, score, meta);
+    QA.sfx.win();
+    showBoard(def.id, res.rank, score);
+  }
+
+  function showBoard(gameId, rank, score) {
+    const board = QA.getBoard(gameId);
+    const ov = $('#overlay');
+    let rows = '';
+    for (let i = 0; i < Math.min(10, board.length); i++) {
+      const e = board[i];
+      const isMe = rank === i + 1 && Math.abs(e.score - Math.round(score)) === 0;
+      rows += '<tr' + (isMe ? ' class="me"' : '') + '>' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td>' + e.score + '</td>' +
+        '<td>' + new Date(e.date).toLocaleDateString() + '</td>' +
+        '</tr>';
+    }
+    if (!rows) rows = '<tr><td colspan="3" style="text-align:center;color:var(--dim)">—</td></tr>';
+    ov.innerHTML =
+      '<div class="box">' +
+        '<h2>РЕКОРДЫ</h2>' +
+        '<div style="text-align:center;margin-bottom:10px">Твой счёт: <b style="color:var(--phos)">' + Math.round(score) + '</b>' +
+        (rank ? '  ·  место: <b style="color:var(--acc)">' + rank + '</b>' : '') + '</div>' +
+        '<table><tr><th>#</th><th>Счёт</th><th>Дата</th></tr>' + rows + '</table>' +
+        '<div class="actions">' +
+          '<button id="ov-again">Ещё раз</button>' +
+          '<button id="ov-menu">В меню</button>' +
+        '</div>' +
+      '</div>';
+    ov.classList.add('on');
+    $('#ov-again').onclick = () => { QA.sfx.click(); ov.classList.remove('on'); launchGame(gameId); };
+    $('#ov-menu').onclick = () => { QA.sfx.click(); showMenu(); };
+  }
+
+  // ======= Кнопки шапки =======
+  $('#qa-menu').addEventListener('click', () => showMenu());
+  $('#qa-mute').addEventListener('click', () => QA.toggleMute());
+  $('#qa-pause').addEventListener('click', () => QA.togglePause());
+  $('#qa-board').addEventListener('click', () => {
+    if (!current) return;
+    const def = GAMES.find(g => g.id === current.id);
+    const api = current.api;
+    const score = api && typeof api.getScore === 'function' ? api.getScore() : (api._score || 0);
+    showBoard(current.id, null, score);
+  });
+
+  // ======= Старт =======
+  document.addEventListener('DOMContentLoaded', () => {
+    buildMenu();
+    $('#qa-mute').textContent = QA.isMuted() ? '🔇' : '🔊';
+    // при изменении размера — fit canvas текущей игры
+    window.addEventListener('resize', () => {
+      const cv = document.querySelector('#game-stage canvas');
+      if (cv) QA.fitCanvas(cv);
+    });
+  });
+})();
+// Tetris — 10×20, 7 фигур (SRS-lite), мягкое/жёсткое падение.
+(function () {
+  const COLS = 10, ROWS = 20, BLOCK = 26;
+  const COLORS = [
+    null,
+    '#00e0e0', // I
+    '#e0e000', // O
+    '#a000e0', // T
+    '#00e000', // S
+    '#e00000', // Z
+    '#0000e0', // J
+    '#e08000', // L
+  ];
+  const SHAPES = {
+    I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
+    O: [[2,2],[2,2]],
+    T: [[0,3,0],[3,3,3],[0,0,0]],
+    S: [[0,4,4],[4,4,0],[0,0,0]],
+    Z: [[5,5,0],[0,5,5],[0,0,0]],
+    J: [[6,0,0],[6,6,6],[0,0,0]],
+    L: [[0,0,7],[7,7,7],[0,0,0]],
+  };
+  const KEYS = Object.keys(SHAPES);
+
+  function blankBoard() {
+    return Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+  }
+
+  GB.register({
+    id: 'tetris',
+    name: 'Тетрис',
+    icon: '▦',
+    create(stage, host) {
+      const cv = document.createElement('canvas');
+      cv.width = COLS * BLOCK + 2;
+      cv.height = ROWS * BLOCK + 2;
+      stage.appendChild(cv);
+      const ctx = cv.getContext('2d');
+
+      let board = blankBoard();
+      let cur = null;      // {shape, color, x, y}
+      let next = null;
+      let score = 0;
+      let lines = 0;
+      let level = 1;
+      let dropTimer = 0;
+      let dropInterval = 500;   // ms
+      let lastTs = 0;
+      let over = false;
+      let raf = null;
+      let paused = false;
+
+      function spawn() {
+        const k = next || KEYS[Math.floor(Math.random() * KEYS.length)];
+        next = KEYS[Math.floor(Math.random() * KEYS.length)];
+        const shape = SHAPES[k].map(r => r.slice());
+        const color = 1 + KEYS.indexOf(k);
+        cur = {
+          shape,
+          color,
+          x: Math.floor((COLS - shape[0].length) / 2),
+          y: 0,
+        };
+        if (collides(cur.shape, cur.x, cur.y)) {
+          endGame();
+        }
+      }
+
+      function collides(shape, px, py) {
+        for (let y = 0; y < shape.length; y++) {
+          for (let x = 0; x < shape[y].length; x++) {
+            if (!shape[y][x]) continue;
+            const bx = px + x, by = py + y;
+            if (bx < 0 || bx >= COLS || by >= ROWS) return true;
+            if (by >= 0 && board[by][bx]) return true;
+          }
+        }
+        return false;
+      }
+
+      function merge() {
+        for (let y = 0; y < cur.shape.length; y++) {
+          for (let x = 0; x < cur.shape[y].length; x++) {
+            if (!cur.shape[y][x]) continue;
+            const bx = cur.x + x, by = cur.y + y;
+            if (by >= 0 && by < ROWS && bx >= 0 && bx < COLS) {
+              board[by][bx] = cur.color;
+            }
+          }
+        }
+      }
+
+      function clearLines() {
+        let n = 0;
+        for (let y = ROWS - 1; y >= 0; y--) {
+          if (board[y].every(c => c)) {
+            board.splice(y, 1);
+            board.unshift(Array(COLS).fill(0));
+            n++; y++;
+          }
+        }
+        if (n > 0) {
+          score += [0, 100, 300, 500, 800][n] * level;
+          lines += n;
+          level = 1 + Math.floor(lines / 10);
+          dropInterval = Math.max(80, 500 - (level - 1) * 45);
+          QA.sfx.good();
+          updateHud();
+        }
+      }
+
+      function rotate(dir) {
+        const shape = cur.shape;
+        const N = shape.length;
+        const rot = Array.from({ length: N }, () => Array(N).fill(0));
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          if (dir > 0) rot[x][N - 1 - y] = shape[y][x];
+          else          rot[N - 1 - x][y] = shape[y][x];
+        }
+        // wall kick: сдвиг если вылезли
+        const kicks = [0, -1, 1, -2, 2];
+        for (const k of kicks) {
+          if (!collides(rot, cur.x + k, cur.y)) {
+            cur.shape = rot; cur.x += k;
+            QA.sfx.move();
+            return;
+          }
+        }
+      }
+
+      function tick(ts) {
+        raf = requestAnimationFrame(tick);
+        if (over) return;
+        if (!paused) {
+          if (!lastTs) lastTs = ts;
+          const dt = ts - lastTs; lastTs = ts;
+          dropTimer += dt;
+          if (dropTimer >= dropInterval) {
+            dropTimer = 0;
+            stepDown();
+          }
+          draw();
+        }
+      }
+
+      function stepDown() {
+        if (!cur) return;
+        if (!collides(cur.shape, cur.x, cur.y + 1)) {
+          cur.y++;
+        } else {
+          merge();
+          clearLines();
+          spawn();
+        }
+      }
+
+      function hardDrop() {
+        while (!collides(cur.shape, cur.x, cur.y + 1)) cur.y++;
+        QA.sfx.step();
+        stepDown();
+      }
+
+      function draw() {
+        ctx.fillStyle = '#050510';
+        ctx.fillRect(0, 0, cv.width, cv.height);
+        // сетка
+        ctx.strokeStyle = 'rgba(48,54,61,.35)';
+        ctx.lineWidth = 1;
+        for (let x = 1; x < COLS; x++) { ctx.beginPath(); ctx.moveTo(x*BLOCK+1, 1); ctx.lineTo(x*BLOCK+1, ROWS*BLOCK+1); ctx.stroke(); }
+        for (let y = 1; y < ROWS; y++) { ctx.beginPath(); ctx.moveTo(1, y*BLOCK+1); ctx.lineTo(COLS*BLOCK+1, y*BLOCK+1); ctx.stroke(); }
+        // board
+        for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+          if (board[y][x]) block(x, y, COLORS[board[y][x]]);
+        }
+        // текущая
+        if (cur) {
+          for (let y = 0; y < cur.shape.length; y++) for (let x = 0; x < cur.shape[y].length; x++) {
+            if (cur.shape[y][x]) block(cur.x + x, cur.y + y, COLORS[cur.color]);
+          }
+        }
+      }
+
+      function block(gx, gy, color) {
+        ctx.fillStyle = color;
+        ctx.fillRect(gx*BLOCK+1, gy*BLOCK+1, BLOCK-2, BLOCK-2);
+        ctx.fillStyle = 'rgba(255,255,255,.25)';
+        ctx.fillRect(gx*BLOCK+2, gy*BLOCK+2, BLOCK-4, 2);
+      }
+
+      function updateHud() {
+        host.onHud(
+          'Очки: <b>' + score + '</b> · ' +
+          'Линии: <b>' + lines + '</b> · ' +
+          'Уровень: <b>' + level + '</b>'
+        );
+      }
+
+      function endGame() {
+        over = true;
+        QA.sfx.lose();
+        host.onEnd(score, { lines, level });
+      }
+
+      function restart() {
+        board = blankBoard();
+        score = 0; lines = 0; level = 1;
+        dropInterval = 500; dropTimer = 0; lastTs = 0;
+        over = false;
+        spawn();
+        updateHud();
+      }
+
+      const keyHandler = (e) => {
+        if (over) return;
+        const k = e.key.toLowerCase();
+        if (k === 'arrowleft' || k === 'a' || k === 'ф')  { if (!collides(cur.shape, cur.x-1, cur.y)) { cur.x--; QA.sfx.move(); } e.preventDefault(); }
+        else if (k === 'arrowright' || k === 'd' || k === 'в') { if (!collides(cur.shape, cur.x+1, cur.y)) { cur.x++; QA.sfx.move(); } e.preventDefault(); }
+        else if (k === 'arrowdown' || k === 's' || k === 'ы')  { if (!collides(cur.shape, cur.x, cur.y+1)) { cur.y++; } e.preventDefault(); }
+        else if (k === 'arrowup' || k === 'w' || k === 'ц')    { rotate(1); e.preventDefault(); }
+        else if (k === 'z' || k === 'я')                        { rotate(-1); e.preventDefault(); }
+        else if (k === ' ')                                     { hardDrop(); e.preventDefault(); }
+      };
+
+      return {
+        start() {
+          restart();
+          document.addEventListener('keydown', keyHandler);
+          QA.onPause((p) => { paused = p; lastTs = 0; });
+          raf = requestAnimationFrame(tick);
+        },
+        getScore: () => score,
+        destroy() {
+          if (raf) cancelAnimationFrame(raf);
+          document.removeEventListener('keydown', keyHandler);
+        },
+        _debug: { endGame: () => endGame(), getScore: () => score, restart: () => restart() },
+      };
+    }
+  });
+})();
+// Arkanoid — платформа, мяч, кирпичи, 3 жизни.
+(function () {
+  const W = 480, H = 420;
+  const BRICK_W = 48, BRICK_H = 18, BRICK_GAP = 2;
+  const COLS = 8, ROWS = 5;
+  const PADDLE_W = 80, PADDLE_H = 12, PADDLE_Y = H - 30;
+  const BALL_R = 7;
+
+  GB.register({
+    id: 'arkanoid',
+    name: 'Арканоид',
+    icon: '◉',
+    create(stage, host) {
+      const cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      stage.appendChild(cv);
+      const ctx = cv.getContext('2d');
+
+      let bricks = [];
+      let paddleX = (W - PADDLE_W) / 2;
+      let ball = { x: W/2, y: H/2, vx: 160, vy: -260 };
+      let lives = 3;
+      let score = 0;
+      let raf = null;
+      let lastTs = 0;
+      let paused = false;
+      let over = false;
+      let win = false;
+
+      const BRICK_COLORS = ['#e04040','#e08040','#e0e040','#40e040','#40a0e0'];
+
+      function resetBricks() {
+        bricks = [];
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            bricks.push({
+              x: 20 + c * (BRICK_W + BRICK_GAP),
+              y: 30 + r * (BRICK_H + BRICK_GAP),
+              w: BRICK_W, h: BRICK_H,
+              hp: 1 + (r < 2 ? 1 : 0),
+              color: BRICK_COLORS[r],
+              alive: true,
+            });
+          }
+        }
+      }
+
+      function resetBall() {
+        ball = { x: paddleX + PADDLE_W/2, y: PADDLE_Y - BALL_R - 2, vx: (Math.random() > 0.5 ? 1 : -1) * 160, vy: -260 };
+      }
+
+      function restart() {
+        resetBricks();
+        lives = 3; score = 0; over = false; win = false;
+        paddleX = (W - PADDLE_W) / 2;
+        resetBall();
+        lastTs = 0;
+        updateHud();
+      }
+
+      function updateHud() {
+        host.onHud('Очки: <b>' + score + '</b> · Жизни: <b>' + lives + '</b>');
+      }
+
+      function tick(ts) {
+        raf = requestAnimationFrame(tick);
+        if (over) return;
+        if (!lastTs) lastTs = ts;
+        const dt = Math.min(40, ts - lastTs) / 1000; lastTs = ts;
+        if (!paused) {
+          physics(dt);
+          draw();
+        }
+      }
+
+      function physics(dt) {
+        ball.x += ball.vx * dt;
+        ball.y += ball.vy * dt;
+        // стены
+        if (ball.x < BALL_R) { ball.x = BALL_R; ball.vx = Math.abs(ball.vx); QA.sfx.step(); }
+        if (ball.x > W - BALL_R) { ball.x = W - BALL_R; ball.vx = -Math.abs(ball.vx); QA.sfx.step(); }
+        if (ball.y < BALL_R) { ball.y = BALL_R; ball.vy = Math.abs(ball.vy); QA.sfx.step(); }
+        if (ball.y > H + 30) {
+          lives--; QA.sfx.bad();
+          updateHud();
+          if (lives <= 0) { over = true; QA.sfx.lose(); host.onEnd(score, {}); return; }
+          resetBall();
+          return;
+        }
+        // платформа
+        if (ball.y + BALL_R >= PADDLE_Y && ball.y - BALL_R <= PADDLE_Y + PADDLE_H &&
+            ball.x >= paddleX - BALL_R && ball.x <= paddleX + PADDLE_W + BALL_R && ball.vy > 0) {
+          const hit = (ball.x - paddleX) / PADDLE_W - 0.5;
+          ball.vx = hit * 400;
+          ball.vy = -Math.abs(ball.vy);
+          ball.y = PADDLE_Y - BALL_R;
+          QA.sfx.good();
+        }
+        // кирпичи
+        for (const b of bricks) {
+          if (!b.alive) continue;
+          if (ball.x + BALL_R < b.x || ball.x - BALL_R > b.x + b.w) continue;
+          if (ball.y + BALL_R < b.y || ball.y - BALL_R > b.y + b.h) continue;
+          b.hp--;
+          if (b.hp <= 0) { b.alive = false; score += 10; QA.sfx.step(); }
+          else { score += 5; QA.sfx.step(); }
+          // отскок по ближайшей грани
+          const overlapX = Math.min(ball.x + BALL_R - b.x, b.x + b.w - ball.x + BALL_R);
+          const overlapY = Math.min(ball.y + BALL_R - b.y, b.y + b.h - ball.y + BALL_R);
+          if (overlapX < overlapY) ball.vx = -ball.vx;
+          else ball.vy = -ball.vy;
+          break;
+        }
+        updateHud();
+        // win?
+        if (bricks.every(b => !b.alive)) { over = true; win = true; QA.sfx.win(); host.onEnd(score, { win: true }); }
+      }
+
+      function draw() {
+        ctx.fillStyle = '#050510';
+        ctx.fillRect(0, 0, W, H);
+        // bricks
+        for (const b of bricks) {
+          if (!b.alive) continue;
+          ctx.fillStyle = b.color;
+          ctx.globalAlpha = b.hp > 1 ? 1 : 0.65;
+          ctx.fillRect(b.x, b.y, b.w, b.h);
+          ctx.globalAlpha = 1;
+        }
+        // paddle
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillRect(paddleX, PADDLE_Y, PADDLE_W, PADDLE_H);
+        ctx.fillStyle = 'rgba(255,255,255,.3)';
+        ctx.fillRect(paddleX + 2, PADDLE_Y + 2, PADDLE_W - 4, 2);
+        // ball
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, BALL_R, 0, 7);
+        ctx.fillStyle = '#58a6ff';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(88,166,255,.4)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      const keyHandler = (e) => {
+        if (over) return;
+        const k = e.key.toLowerCase();
+        if (k === 'arrowleft' || k === 'a' || k === 'ф') { paddleX = Math.max(0, paddleX - 32); e.preventDefault(); }
+        else if (k === 'arrowright' || k === 'd' || k === 'в') { paddleX = Math.min(W - PADDLE_W, paddleX + 32); e.preventDefault(); }
+      };
+
+      const moveHandler = (e) => {
+        if (over) return;
+        const rect = cv.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * (W / rect.width);
+        paddleX = Math.max(0, Math.min(W - PADDLE_W, x - PADDLE_W/2));
+      };
+
+      return {
+        start() {
+          restart();
+          document.addEventListener('keydown', keyHandler);
+          cv.addEventListener('pointermove', moveHandler);
+          QA.onPause((p) => { paused = p; lastTs = 0; });
+          raf = requestAnimationFrame(tick);
+        },
+        getScore: () => score,
+        destroy() {
+          if (raf) cancelAnimationFrame(raf);
+          document.removeEventListener('keydown', keyHandler);
+          cv.removeEventListener('pointermove', moveHandler);
+        },
+        _debug: { endGame: () => { over = true; host.onEnd(score, {}); }, getScore: () => score, restart, killAllBricks: () => { bricks.forEach(b => b.alive = false); physics(0); } },
+      };
+    }
+  });
+})();
+// Lines — 9×9, 5+ в линию по горизонтали/вертикали/диагонали.
+(function () {
+  const N = 9, CELL = 44;
+  const COLORS = ['#e04040', '#40a0e0', '#40d060', '#e0c040', '#c040e0'];
+  const RANDOM_COLORS = 3;
+
+  GB.register({
+    id: 'lines',
+    name: 'Линии',
+    icon: '●●',
+    create(stage, host) {
+      const cv = document.createElement('canvas');
+      cv.width = N * CELL + 2; cv.height = N * CELL + 2;
+      stage.appendChild(cv);
+      const ctx = cv.getContext('2d');
+
+      let board = Array.from({ length: N }, () => Array(N).fill(-1));
+      let selected = null;
+      let score = 0;
+      let over = false;
+      let raf = null;
+
+      function randColor() { return Math.floor(Math.random() * RANDOM_COLORS); }
+
+      function spawnRandom() {
+        for (let k = 0; k < 3; k++) {
+          for (let tries = 0; tries < 100; tries++) {
+            const y = Math.floor(Math.random() * N), x = Math.floor(Math.random() * N);
+            if (board[y][x] === -1) { board[y][x] = randColor(); break; }
+          }
+        }
+      }
+
+      function findLines() {
+        const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+        const mark = Array.from({ length: N }, () => Array(N).fill(false));
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          const c = board[y][x]; if (c < 0) continue;
+          for (const [dx, dy] of dirs) {
+            let n = 1;
+            while (true) {
+              const nx = x + dx*n, ny = y + dy*n;
+              if (nx < 0 || nx >= N || ny < 0 || ny >= N) break;
+              if (board[ny][nx] !== c) break;
+              n++;
+            }
+            if (n >= 5) for (let i = 0; i < n; i++) mark[y + dy*i][x + dx*i] = true;
+          }
+        }
+        return mark;
+      }
+
+      function clearLines() {
+        const mark = findLines();
+        let n = 0;
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (mark[y][x]) { board[y][x] = -1; n++; }
+        if (n > 0) {
+          score += n * 2;
+          QA.sfx.good();
+          // bonus за размер
+          if (n >= 7) score += 5;
+          updateHud();
+        }
+        return n;
+      }
+
+      function bfs(sx, sy, color) {
+        const seen = Array.from({ length: N }, () => Array(N).fill(false));
+        const q = [[sx, sy]];
+        const result = [];
+        seen[sy][sx] = true;
+        while (q.length) {
+          const [x, y] = q.shift();
+          result.push([x, y]);
+          for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || nx >= N || ny < 0 || ny >= N) continue;
+            if (seen[ny][nx]) continue;
+            if (board[ny][nx] !== color) continue;
+            seen[ny][nx] = true;
+            q.push([nx, ny]);
+          }
+        }
+        return result;
+      }
+
+      function pathFind(sx, sy, tx, ty) {
+        const open = [[sx, sy]];
+        const prev = {};
+        const key = (x, y) => x + ',' + y;
+        const seen = { [key(sx, sy)]: true };
+        while (open.length) {
+          const [x, y] = open.shift();
+          if (x === tx && y === ty) {
+            // собрать путь
+            const path = [];
+            let k = key(tx, ty);
+            while (prev[k]) {
+              path.unshift(k.split(',').map(Number));
+              k = prev[k];
+            }
+            return path;
+          }
+          for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || nx >= N || ny < 0 || ny >= N) continue;
+            if (board[ny][nx] !== -1 && !(nx === tx && ny === ty)) continue;
+            const k2 = key(nx, ny);
+            if (seen[k2]) continue;
+            seen[k2] = true;
+            prev[k2] = key(x, y);
+            open.push([nx, ny]);
+          }
+        }
+        return null;
+      }
+
+      function click(gx, gy) {
+        if (over) return;
+        const c = board[gy][gx];
+        // пустая клетка допустима как ЦЕЛЬ (если что-то выбрано)
+        if (c < 0 && !selected) return;
+        if (!selected) {
+          selected = [gx, gy];
+          QA.sfx.click();
+          draw();
+          return;
+        }
+        if (selected[0] === gx && selected[1] === gy) {
+          selected = null;
+          QA.sfx.click();
+          draw();
+          return;
+        }
+        const path = pathFind(selected[0], selected[1], gx, gy);
+        if (!path || path.length > 200) {
+          QA.sfx.bad();
+          selected = [gx, gy];
+          draw();
+          return;
+        }
+        board[gy][gx] = board[selected[1]][selected[0]];
+        board[selected[1]][selected[0]] = -1;
+        QA.sfx.move();
+        selected = null;
+        const cleared = clearLines();
+        if (cleared === 0) {
+          spawnRandom();
+          const cl2 = clearLines();
+          if (cl2 > 0) updateHud();
+        }
+        if (board.every(row => row.every(v => v === -1))) { /* no more */ }
+        // check if no moves (basic): если все поля заняты — game over
+        if (board.every(row => row.every(v => v >= 0))) {
+          // попробуем линии
+          if (clearLines() === 0) {
+            over = true;
+            QA.sfx.lose();
+            host.onEnd(score, {});
+          }
+        }
+        draw();
+      }
+
+      function updateHud() {
+        host.onHud('Очки: <b>' + score + '</b> · Ходов: <b>' + countMoves() + '</b>');
+      }
+
+      function countMoves() {
+        // очень грубо: количество пустых клеток
+        let n = 0;
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (board[y][x] === -1) n++;
+        return n;
+      }
+
+      function draw() {
+        ctx.fillStyle = '#050510';
+        ctx.fillRect(0, 0, cv.width, cv.height);
+        // grid
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          const c = board[y][x];
+          const px = x * CELL + 1, py = y * CELL + 1;
+          ctx.fillStyle = (x + y) % 2 ? '#0d1117' : '#161b22';
+          ctx.fillRect(px, py, CELL, CELL);
+          if (c >= 0) {
+            const cx = px + CELL/2, cy = py + CELL/2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, CELL * 0.36, 0, 7);
+            ctx.fillStyle = COLORS[c];
+            ctx.fill();
+            // блик
+            ctx.beginPath();
+            ctx.arc(cx - CELL * 0.10, cy - CELL * 0.10, CELL * 0.12, 0, 7);
+            ctx.fillStyle = 'rgba(255,255,255,.4)';
+            ctx.fill();
+            // selected подсветка
+            if (selected && selected[0] === x && selected[1] === y) {
+              ctx.strokeStyle = '#58a6ff';
+              ctx.lineWidth = 3;
+              ctx.strokeRect(px + 2, py + 2, CELL - 4, CELL - 4);
+            }
+          }
+        }
+      }
+
+      const clickHandler = (e) => {
+        const rect = cv.getBoundingClientRect();
+        const x = Math.floor((e.clientX - rect.left) * (N * CELL / rect.width) / CELL);
+        const y = Math.floor((e.clientY - rect.top) * (N * CELL / rect.height) / CELL);
+        if (x >= 0 && x < N && y >= 0 && y < N) click(x, y);
+      };
+
+      function start() {
+        board = Array.from({ length: N }, () => Array(N).fill(-1));
+        score = 0; selected = null; over = false;
+        for (let i = 0; i < 5; i++) spawnRandom();
+        // убрать случайные совпадения
+        clearLines();
+        cv.addEventListener('pointerdown', clickHandler);
+        updateHud();
+        draw();
+        raf = requestAnimationFrame(function loop() { raf = requestAnimationFrame(loop); });
+      }
+
+      return {
+        start,
+        getScore: () => score,
+        destroy() {
+          if (raf) cancelAnimationFrame(raf);
+          cv.removeEventListener('pointerdown', clickHandler);
+        },
+        _debug: {
+          getScore: () => score,
+          board: () => board.map(r => r.slice()),
+          setBoard: (b) => { board = b.map(r => r.slice()); draw(); },
+          spawn: (x, y, c) => { board[y][x] = c; draw(); },
+          endGame: () => { over = true; host.onEnd(score, {}); },
+          click,
+        },
+      };
+    }
+  });
+})();
+// Chess — полные правила + ИИ (minimax depth 2, альфа-бета).
+(function () {
+  const SQ = 56, BOARD = 8;
+  const W = SQ * BOARD, H = SQ * BOARD;
+  const GLYPH = {
+    'P':'♙','N':'♘','B':'♗','R':'♖','Q':'♕','K':'♔',
+    'p':'♟','n':'♞','b':'♝','r':'♜','q':'♛','k':'♚',
+  };
+  const VALUES = { p:100, n:320, b:330, r:500, q:900, k:20000, P:100, N:320, B:330, R:500, Q:900, K:20000 };
+
+  function startBoard() {
+    return [
+      ['r','n','b','q','k','b','n','r'],
+      ['p','p','p','p','p','p','p','p'],
+      ['.','.','.','.','.','.','.','.'],
+      ['.','.','.','.','.','.','.','.'],
+      ['.','.','.','.','.','.','.','.'],
+      ['.','.','.','.','.','.','.','.'],
+      ['P','P','P','P','P','P','P','P'],
+      ['R','N','B','Q','K','B','N','R'],
+    ];
+  }
+
+  function isWhite(c) { return c !== '.' && c === c.toUpperCase(); }
+  function isBlack(c) { return c !== '.' && c === c.toLowerCase(); }
+  function sameSide(a, b) { if (a === '.' || b === '.') return false; return isWhite(a) === isWhite(b); }
+
+  function findKing(b, white) {
+    const k = white ? 'K' : 'k';
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (b[y][x] === k) return [x, y];
+    return null;
+  }
+
+  function pseudoMoves(b, x, y, state) {
+    const p = b[y][x]; if (p === '.') return [];
+    const white = isWhite(p);
+    const moves = [];
+    const add = (nx, ny, opts) => {
+      if (nx < 0 || nx >= 8 || ny < 0 || ny >= 8) return false;
+      const t = b[ny][nx];
+      if (sameSide(p, t)) return false;
+      moves.push(Object.assign({ from: [x, y], to: [nx, ny], capture: t !== '.' }, opts || {}));
+      return t === '.';
+    };
+    const typ = p.toLowerCase();
+    if (typ === 'p') {
+      const dir = white ? -1 : 1;
+      const startY = white ? 6 : 1;
+      // forward 1
+      if (y + dir >= 0 && y + dir < 8 && b[y + dir][x] === '.') {
+        moves.push({ from:[x,y], to:[x,y+dir], capture:false });
+        if (y === startY && b[y + 2*dir][x] === '.') {
+          moves.push({ from:[x,y], to:[x,y+2*dir], capture:false, double:true });
+        }
+      }
+      // captures
+      for (const dx of [-1, 1]) {
+        const nx = x + dx, ny = y + dir;
+        if (nx < 0 || nx >= 8 || ny < 0 || ny >= 8) continue;
+        if (b[ny][nx] !== '.' && !sameSide(p, b[ny][nx])) {
+          moves.push({ from:[x,y], to:[nx,ny], capture:true });
+        }
+        // en passant
+        if (state && state.ep && state.ep[0] === nx && state.ep[1] === ny) {
+          moves.push({ from:[x,y], to:[nx,ny], capture:true, ep:true });
+        }
+      }
+    } else if (typ === 'n') {
+      for (const [dx, dy] of [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]]) add(x+dx, y+dy);
+    } else if (typ === 'b') {
+      for (const [dx, dy] of [[1,1],[1,-1],[-1,1],[-1,-1]]) {
+        let nx = x+dx, ny = y+dy;
+        while (add(nx, ny)) { nx += dx; ny += dy; }
+      }
+    } else if (typ === 'r') {
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        let nx = x+dx, ny = y+dy;
+        while (add(nx, ny)) { nx += dx; ny += dy; }
+      }
+    } else if (typ === 'q') {
+      for (const [dx, dy] of [[1,1],[1,-1],[-1,1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]]) {
+        let nx = x+dx, ny = y+dy;
+        while (add(nx, ny)) { nx += dx; ny += dy; }
+      }
+    } else if (typ === 'k') {
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]) add(x+dx, y+dy);
+      // castling
+      if (state) {
+        const row = white ? 7 : 0;
+        if (y === row && x === 4 && !state.kingMoved[white ? 'w' : 'b']) {
+          // kingside
+          if (!state.rookMoved[white?'wR':'bR'] && b[row][5]==='.' && b[row][6]==='.' &&
+              b[row][7]===(white?'R':'r')) {
+            moves.push({ from:[4,row], to:[6,row], capture:false, castle:'K' });
+          }
+          // queenside
+          if (!state.rookMoved[white?'wL':'bL'] && b[row][1]==='.' && b[row][2]==='.' && b[row][3]==='.' &&
+              b[row][0]===(white?'R':'r')) {
+            moves.push({ from:[4,row], to:[2,row], capture:false, castle:'Q' });
+          }
+        }
+      }
+    }
+    return moves;
+  }
+
+  function attacked(b, x, y, byWhite) {
+    // атакована ли клетка (x,y) стороной byWhite
+    for (let yy = 0; yy < 8; yy++) for (let xx = 0; xx < 8; xx++) {
+      const p = b[yy][xx]; if (p === '.') continue;
+      if (isWhite(p) !== byWhite) continue;
+      const ms = pseudoMoves(b, xx, yy, null);
+      for (const m of ms) if (m.to[0] === x && m.to[1] === y) return true;
+    }
+    return false;
+  }
+
+  function applyMove(b, m, state) {
+    const nb = b.map(r => r.slice());
+    const piece = nb[m.from[1]][m.from[0]];
+    nb[m.to[1]][m.to[0]] = piece;
+    nb[m.from[1]][m.from[0]] = '.';
+    if (m.ep) nb[m.from[1]][m.to[0]] = '.';
+    if (m.castle === 'K') { const row = m.from[1]; nb[row][5] = nb[row][7]; nb[row][7] = '.'; }
+    if (m.castle === 'Q') { const row = m.from[1]; nb[row][3] = nb[row][0]; nb[row][0] = '.'; }
+    // promotion (auto Q)
+    const toRow = m.to[1];
+    if (piece === 'P' && toRow === 0) nb[toRow][m.to[0]] = 'Q';
+    if (piece === 'p' && toRow === 7) nb[toRow][m.to[0]] = 'q';
+    return nb;
+  }
+
+  function legalMoves(b, x, y, state, sideWhite) {
+    const ms = pseudoMoves(b, x, y, state);
+    const res = [];
+    for (const m of ms) {
+      const nb = applyMove(b, m, state);
+      const k = findKing(nb, sideWhite);
+      if (!k) continue;
+      if (!attacked(nb, k[0], k[1], !sideWhite)) res.push(m);
+    }
+    return res;
+  }
+
+  function allLegalMoves(b, white, state) {
+    const res = [];
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+      const p = b[y][x]; if (p === '.') continue;
+      if (isWhite(p) !== white) continue;
+      res.push(...legalMoves(b, x, y, state, white));
+    }
+    return res;
+  }
+
+  function inCheck(b, white) {
+    const k = findKing(b, white); if (!k) return true;
+    return attacked(b, k[0], k[1], !white);
+  }
+
+  function minimax(b, white, depth, alpha, beta, state) {
+    if (depth === 0) return evalBoard(b);
+    const ms = allLegalMoves(b, white, state);
+    if (ms.length === 0) return inCheck(b, white) ? (white ? -99999 : 99999) : 0;
+    let best = white ? -Infinity : Infinity;
+    for (const m of ms) {
+      const nb = applyMove(b, m, state);
+      // very rough castle/ep state not propagated for eval
+      const val = minimax(nb, !white, depth - 1, alpha, beta, state);
+      if (white) { if (val > best) best = val; if (best > alpha) alpha = best; }
+      else       { if (val < best) best = val; if (best < beta) beta = best; }
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+
+  function evalBoard(b) {
+    let s = 0;
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+      const p = b[y][x]; if (p === '.') continue;
+      const v = VALUES[p] || 0;
+      s += isWhite(p) ? v : -v;
+    }
+    return s;
+  }
+
+  GB.register({
+    id: 'chess',
+    name: 'Шахматы',
+    icon: '♞',
+    create(stage, host) {
+      const cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      stage.appendChild(cv);
+      const ctx = cv.getContext('2d');
+
+      let board = startBoard();
+      let whiteToMove = true;
+      let selected = null;
+      let legalForSelected = [];
+      let lastMove = null;
+      let moves = 0;
+      let over = false;
+      let aiThinking = false;
+      let raf = null;
+      let state = {
+        kingMoved: { w: false, b: false },
+        rookMoved: { wL: false, wR: false, bL: false, bR: false },
+        ep: null,
+      };
+
+      function updateHud() {
+        const ms = allLegalMoves(board, whiteToMove, state);
+        const check = inCheck(board, whiteToMove);
+        host.onHud(
+          (whiteToMove ? 'Ход: <b>белые</b>' : 'Ход: <b>чёрные</b>') +
+          ' · Ходов: <b>' + moves + '</b>' +
+          (check ? ' · <b style="color:#f85149">ШАХ</b>' : '') +
+          ' · Фигур: <b>' + countPieces() + '</b>'
+        );
+        if (ms.length === 0) {
+          over = true;
+          if (check) { QA.sfx.win(); host.onEnd(scoreFromBoard(), { mate: true, winner: whiteToMove ? 'black' : 'white' }); }
+          else { QA.sfx.lose(); host.onEnd(scoreFromBoard(), { stalemate: true }); }
+        }
+      }
+
+      function countPieces() {
+        let n = 0;
+        for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (board[y][x] !== '.') n++;
+        return n;
+      }
+      function scoreFromBoard() {
+        // для лидерборда: мат = 100, каждый съеденный материал = 1 очко
+        const initPieces = 32;
+        const eaten = initPieces - countPieces();
+        return eaten * 5 + (over ? 20 : 0);
+      }
+
+      function draw() {
+        for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+          ctx.fillStyle = (x + y) % 2 ? '#5a3a24' : '#e8d8b8';
+          ctx.fillRect(x*SQ, y*SQ, SQ, SQ);
+        }
+        // last move highlight
+        if (lastMove) {
+          ctx.strokeStyle = 'rgba(46,204,113,.7)';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(lastMove.from[0]*SQ + 2, lastMove.from[1]*SQ + 2, SQ-4, SQ-4);
+          ctx.strokeRect(lastMove.to[0]*SQ + 2, lastMove.to[1]*SQ + 2, SQ-4, SQ-4);
+        }
+        // legal moves
+        for (const m of legalForSelected) {
+          ctx.beginPath();
+          ctx.arc(m.to[0]*SQ + SQ/2, m.to[1]*SQ + SQ/2, m.capture ? SQ*0.35 : SQ*0.15, 0, 7);
+          ctx.fillStyle = m.capture ? 'rgba(248,81,73,.6)' : 'rgba(88,166,255,.6)';
+          ctx.fill();
+        }
+        // selected
+        if (selected) {
+          ctx.strokeStyle = '#58a6ff';
+          ctx.lineWidth = 4;
+          ctx.strokeRect(selected[0]*SQ + 2, selected[1]*SQ + 2, SQ - 4, SQ - 4);
+        }
+        // pieces
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+          const p = board[y][x]; if (p === '.') continue;
+          ctx.font = 'bold 40px "Segoe UI Symbol", serif';
+          ctx.fillStyle = isWhite(p) ? '#fafafa' : '#111';
+          ctx.strokeStyle = isWhite(p) ? '#222' : '#ccc';
+          ctx.lineWidth = 2;
+          ctx.strokeText(GLYPH[p], x*SQ + SQ/2, y*SQ + SQ/2);
+          ctx.fillText(GLYPH[p], x*SQ + SQ/2, y*SQ + SQ/2);
+        }
+      }
+
+      function tryClick(gx, gy) {
+        if (over || aiThinking) return;
+        if (selected) {
+          const m = legalForSelected.find(mm => mm.to[0] === gx && mm.to[1] === gy);
+          if (m) {
+            applyMoveUI(m);
+            return;
+          }
+          // пере-выбор
+          selected = null;
+          legalForSelected = [];
+        }
+        const p = board[gy][gx];
+        if (p === '.') return;
+        if (isWhite(p) !== whiteToMove) return;
+        selected = [gx, gy];
+        legalForSelected = legalMoves(board, gx, gy, state, whiteToMove);
+        QA.sfx.click();
+        draw();
+      }
+
+      function applyMoveUI(m) {
+        const piece = board[m.from[1]][m.from[0]];
+        // state updates
+        const white = isWhite(piece);
+        if (piece.toLowerCase() === 'k') state.kingMoved[white?'w':'b'] = true;
+        if (piece === 'R') {
+          if (m.from[0] === 0 && m.from[1] === 7) state.rookMoved.wL = true;
+          if (m.from[0] === 7 && m.from[1] === 7) state.rookMoved.wR = true;
+        }
+        if (piece === 'r') {
+          if (m.from[0] === 0 && m.from[1] === 0) state.rookMoved.bL = true;
+          if (m.from[0] === 7 && m.from[1] === 0) state.rookMoved.bR = true;
+        }
+        state.ep = null;
+        if (m.double) state.ep = [(m.from[0] + m.to[0]) / 2, (m.from[1] + m.to[1]) / 2];
+
+        board = applyMove(board, m, state);
+        lastMove = m;
+        moves++;
+        QA.sfx.move();
+        if (m.capture) QA.sfx.step();
+
+        selected = null;
+        legalForSelected = [];
+        whiteToMove = !whiteToMove;
+        draw();
+        updateHud();
+        if (!over) {
+          aiThinking = true;
+          setTimeout(aiMove, 120);
+        }
+      }
+
+      function aiMove() {
+        if (over) return;
+        const ms = allLegalMoves(board, false, state);
+        if (ms.length === 0) { aiThinking = false; updateHud(); return; }
+        let bestVal = Infinity, bestM = ms[0];
+        for (const m of ms) {
+          const nb = applyMove(board, m, state);
+          const v = minimax(nb, true, 2, -Infinity, Infinity, state);
+          if (v < bestVal) { bestVal = v; bestM = m; }
+        }
+        const piece = board[bestM.from[1]][bestM.from[0]];
+        if (piece === 'r') {
+          if (bestM.from[0] === 0 && bestM.from[1] === 0) state.rookMoved.bL = true;
+          if (bestM.from[0] === 7 && bestM.from[1] === 0) state.rookMoved.bR = true;
+        }
+        if (piece === 'k') state.kingMoved.b = true;
+        state.ep = null;
+        if (bestM.double) state.ep = [(bestM.from[0] + bestM.to[0]) / 2, (bestM.from[1] + bestM.to[1]) / 2];
+
+        board = applyMove(board, bestM, state);
+        lastMove = bestM;
+        QA.sfx.move();
+        whiteToMove = true;
+        aiThinking = false;
+        draw();
+        updateHud();
+      }
+
+      function clickHandler(e) {
+        const rect = cv.getBoundingClientRect();
+        const x = Math.floor((e.clientX - rect.left) * (8*SQ / rect.width) / SQ);
+        const y = Math.floor((e.clientY - rect.top) * (8*SQ / rect.height) / SQ);
+        if (x >= 0 && x < 8 && y >= 0 && y < 8) tryClick(x, y);
+      }
+
+      return {
+        start() {
+          board = startBoard();
+          whiteToMove = true;
+          moves = 0; over = false; aiThinking = false;
+          selected = null; legalForSelected = []; lastMove = null;
+          state = { kingMoved: { w: false, b: false }, rookMoved: { wL: false, wR: false, bL: false, bR: false }, ep: null };
+          cv.addEventListener('pointerdown', clickHandler);
+          draw();
+          updateHud();
+        },
+        getScore: () => scoreFromBoard(),
+        destroy() {
+          cv.removeEventListener('pointerdown', clickHandler);
+        },
+        _debug: {
+          board: () => board.map(r => r.slice()),
+          setBoard: (b) => { board = b.map(r => r.slice()); draw(); },
+          moves: () => allLegalMoves(board, whiteToMove, state).length,
+          forceEnd: () => { over = true; host.onEnd(scoreFromBoard(), { forced: true }); },
+          whiteToMove: () => whiteToMove,
+          makeMove: (from, to) => {
+            const ms = legalMoves(board, from[0], from[1], state, whiteToMove);
+            const m = ms.find(x => x.to[0] === to[0] && x.to[1] === to[1]);
+            if (m) applyMoveUI(m);
+            return !!m;
+          },
+          check: () => inCheck(board, whiteToMove),
+        },
+      };
+    }
+  });
+})();
+// Русские шашки — 8×8, дамки, обязательное взятие, цепочки, ИИ.
+(function () {
+  const SQ = 56, BOARD = 8;
+  const W = SQ * BOARD, H = SQ * BOARD;
+
+  function startBoard() {
+    const b = Array.from({ length: 8 }, () => Array(8).fill('.'));
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 8; x++) {
+      if ((x + y) % 2) b[y][x] = 'b';
+    }
+    for (let y = 5; y < 8; y++) for (let x = 0; x < 8; x++) {
+      if ((x + y) % 2) b[y][x] = 'w';
+    }
+    return b;
+  }
+
+  function isWhite(p) { return p === 'w' || p === 'W'; }
+  function isBlack(p) { return p === 'b' || p === 'B'; }
+  function isMine(p, white) { return white ? isWhite(p) : isBlack(p); }
+  function isOpp(p, white) { return white ? isBlack(p) : isWhite(p); }
+
+  // Все взятия для фигуры (x,y). Русские: дамка бьёт по всей диагонали, приземляется на любую клетку за побитой.
+  function capturesFor(b, x, y) {
+    const p = b[y][x];
+    if (p === '.') return [];
+    const white = isWhite(p);
+    const isKing = p === 'W' || p === 'B';
+    const res = [];
+
+    if (!isKing) {
+      for (const [dx, dy] of [[1,1],[1,-1],[-1,1],[-1,-1]]) {
+        const mx = x + dx, my = y + dy;
+        const tx = x + 2*dx, ty = y + 2*dy;
+        if (tx < 0 || tx >= 8 || ty < 0 || ty >= 8) continue;
+        if (b[my][mx] === '.' || !isOpp(b[my][mx], white)) continue;
+        if (b[ty][tx] !== '.') continue;
+        res.push({ from:[x,y], to:[tx,ty], captured:[[mx,my]] });
+      }
+    } else {
+      // дамка: по каждой диагонали ищем первую встречную фигуру (свою/чужую)
+      for (const [dx, dy] of [[1,1],[1,-1],[-1,1],[-1,-1]]) {
+        let cx = x + dx, cy = y + dy;
+        let cap = null;
+        while (cx >= 0 && cx < 8 && cy >= 0 && cy < 8) {
+          const t = b[cy][cx];
+          if (cap === null) {
+            if (t === '.') { cx += dx; cy += dy; continue; }
+            if (!isOpp(t, white)) break;
+            cap = [cx, cy];
+            cx += dx; cy += dy;
+            continue;
+          } else {
+            if (t !== '.') break;
+            res.push({ from:[x,y], to:[cx,cy], captured:[cap.slice()] });
+            cx += dx; cy += dy;
+          }
+        }
+      }
+    }
+    return res;
+  }
+
+  function simpleMovesFor(b, x, y) {
+    const p = b[y][x]; if (p === '.') return [];
+    const white = isWhite(p);
+    const isKing = p === 'W' || p === 'B';
+    const res = [];
+    if (!isKing) {
+      const dirs = white ? [[-1,-1],[1,-1]] : [[-1,1],[1,1]];
+      for (const [dx, dy] of dirs) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || nx >= 8 || ny < 0 || ny >= 8) continue;
+        if (b[ny][nx] === '.') res.push({ from:[x,y], to:[nx,ny], captured:[] });
+      }
+    } else {
+      for (const [dx, dy] of [[1,1],[1,-1],[-1,1],[-1,-1]]) {
+        let cx = x + dx, cy = y + dy;
+        while (cx >= 0 && cx < 8 && cy >= 0 && cy < 8) {
+          if (b[cy][cx] !== '.') break;
+          res.push({ from:[x,y], to:[cx,cy], captured:[] });
+          cx += dx; cy += dy;
+        }
+      }
+    }
+    return res;
+  }
+
+  function allCaptures(b, white) {
+    const res = [];
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+      if (!isMine(b[y][x], white)) continue;
+      res.push(...capturesFor(b, x, y));
+    }
+    return res;
+  }
+
+  function allMoves(b, white) {
+    const caps = allCaptures(b, white);
+    if (caps.length) return caps;   // обязательное взятие
+    const res = [];
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+      if (!isMine(b[y][x], white)) continue;
+      res.push(...simpleMovesFor(b, x, y));
+    }
+    return res;
+  }
+
+  function apply(b, m) {
+    const nb = b.map(r => r.slice());
+    const p = nb[m.from[1]][m.from[0]];
+    nb[m.from[1]][m.from[0]] = '.';
+    nb[m.to[1]][m.to[0]] = p;
+    for (const [cx, cy] of m.captured) nb[cy][cx] = '.';
+    // превращение
+    if (p === 'w' && m.to[1] === 0) nb[m.to[1]][m.to[0]] = 'W';
+    if (p === 'b' && m.to[1] === 7) nb[m.to[1]][m.to[0]] = 'B';
+    return nb;
+  }
+
+  // цепочки: после взятия — если есть ещё взятия этой фигурой, играем дальше (реализуем в UI)
+  function evalBoard(b) {
+    let s = 0;
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+      const p = b[y][x]; if (p === '.') continue;
+      if (p === 'w') s -= 100;
+      if (p === 'b') s += 100;
+      if (p === 'W') s -= 350;
+      if (p === 'B') s += 350;
+      // продвижение
+      if (p === 'w') s -= (7 - y) * 2;
+      if (p === 'b') s += y * 2;
+    }
+    return s;
+  }
+
+  function minimax(b, white, depth, alpha, beta) {
+    if (depth === 0) return evalBoard(b);
+    const ms = allMoves(b, white);
+    if (!ms.length) return white ? 99999 : -99999;
+    let best = white ? -Infinity : Infinity;
+    for (const m of ms) {
+      const nb = apply(b, m);
+      const v = minimax(nb, !white, depth - 1, alpha, beta);
+      if (white) { if (v > best) best = v; if (best > alpha) alpha = best; }
+      else       { if (v < best) best = v; if (best < beta) beta = best; }
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+
+  GB.register({
+    id: 'checkers',
+    name: 'Шашки',
+    icon: '⛁',
+    create(stage, host) {
+      const cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      stage.appendChild(cv);
+      const ctx = cv.getContext('2d');
+
+      let board = startBoard();
+      let whiteToMove = true;
+      let selected = null;
+      let legalForSelected = [];
+      let lastMove = null;
+      let over = false;
+      let aiThinking = false;
+      let moves = 0;
+
+      function updateHud() {
+        const caps = allCaptures(board, whiteToMove);
+        host.onHud(
+          (whiteToMove ? 'Ход: <b>белые</b>' : 'Ход: <b>чёрные</b>') +
+          ' · Ходов: <b>' + moves + '</b>' +
+          (caps.length ? ' · <b style="color:#d29922">ВЗЯТИЕ</b>' : '') +
+          ' · Белые: <b>' + countSide(true) + '</b> · Чёрные: <b>' + countSide(false) + '</b>'
+        );
+        const ms = allMoves(board, whiteToMove);
+        if (ms.length === 0) {
+          over = true;
+          QA.sfx.lose();
+          host.onEnd(scoreFromBoard(), { winner: whiteToMove ? 'black' : 'white' });
+        }
+      }
+
+      function countSide(white) {
+        let n = 0;
+        for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+          if (isMine(board[y][x], white)) n++;
+        }
+        return n;
+      }
+
+      function scoreFromBoard() {
+        return (12 - countSide(false)) * 10 + (over ? 20 : 0);
+      }
+
+      function draw() {
+        for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+          ctx.fillStyle = (x + y) % 2 ? '#3a2a1a' : '#e8d8b8';
+          ctx.fillRect(x*SQ, y*SQ, SQ, SQ);
+        }
+        if (lastMove) {
+          ctx.strokeStyle = 'rgba(46,204,113,.7)';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(lastMove.from[0]*SQ + 2, lastMove.from[1]*SQ + 2, SQ-4, SQ-4);
+          ctx.strokeRect(lastMove.to[0]*SQ + 2, lastMove.to[1]*SQ + 2, SQ-4, SQ-4);
+        }
+        for (const m of legalForSelected) {
+          ctx.beginPath();
+          ctx.arc(m.to[0]*SQ + SQ/2, m.to[1]*SQ + SQ/2, m.captured.length ? SQ*0.30 : SQ*0.18, 0, 7);
+          ctx.fillStyle = m.captured.length ? 'rgba(248,81,73,.6)' : 'rgba(88,166,255,.6)';
+          ctx.fill();
+        }
+        if (selected) {
+          ctx.strokeStyle = '#58a6ff';
+          ctx.lineWidth = 4;
+          ctx.strokeRect(selected[0]*SQ + 2, selected[1]*SQ + 2, SQ - 4, SQ - 4);
+        }
+        // pieces
+        for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+          const p = board[y][x]; if (p === '.') continue;
+          const cx = x*SQ + SQ/2, cy = y*SQ + SQ/2;
+          const r = SQ * 0.38;
+          const white = isWhite(p);
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, 7);
+          ctx.fillStyle = white ? '#fafafa' : '#111';
+          ctx.strokeStyle = white ? '#222' : '#ccc';
+          ctx.lineWidth = 2;
+          ctx.fill();
+          ctx.stroke();
+          if (p === 'W' || p === 'B') {
+            // дамка: звезда
+            ctx.fillStyle = white ? '#d29922' : '#e0c040';
+            ctx.font = 'bold 24px serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('★', cx, cy + 1);
+          }
+        }
+      }
+
+      function tryClick(gx, gy) {
+        if (over || aiThinking) return;
+        if (selected) {
+          const m = legalForSelected.find(mm => mm.to[0] === gx && mm.to[1] === gy);
+          if (m) { applyUIMove(m); return; }
+          selected = null; legalForSelected = [];
+        }
+        const p = board[gy][gx];
+        if (p === '.' || !isMine(p, whiteToMove)) return;
+        selected = [gx, gy];
+        const caps = allCaptures(board, whiteToMove);
+        if (caps.length) {
+          legalForSelected = caps.filter(m => m.from[0] === gx && m.from[1] === gy);
+        } else {
+          legalForSelected = simpleMovesFor(board, gx, gy);
+        }
+        QA.sfx.click();
+        draw();
+      }
+
+      function applyUIMove(m) {
+        board = apply(board, m);
+        lastMove = m;
+        moves++;
+        QA.sfx.move();
+        if (m.captured.length) QA.sfx.step();
+        selected = null; legalForSelected = [];
+        // цепочка: если после взятия у этой же фигуры есть ещё взятия — продолжаем
+        if (m.captured.length) {
+          const next = capturesFor(board, m.to[0], m.to[1]);
+          if (next.length) {
+            selected = [m.to[0], m.to[1]];
+            legalForSelected = next;
+            draw();
+            updateHud();
+            return;
+          }
+        }
+        whiteToMove = !whiteToMove;
+        draw();
+        updateHud();
+        if (!over) {
+          aiThinking = true;
+          setTimeout(aiMove, 150);
+        }
+      }
+
+      function aiMove() {
+        if (over) return;
+        const ms = allMoves(board, false);
+        if (!ms.length) { aiThinking = false; updateHud(); return; }
+        let bestVal = Infinity, bestM = ms[0];
+        for (const m of ms) {
+          const nb = apply(board, m);
+          const v = minimax(nb, true, 3, -Infinity, Infinity);
+          if (v < bestVal) { bestVal = v; bestM = m; }
+        }
+        // цепочка ИИ
+        let cur = board;
+        let mv = bestM;
+        let chain = false;
+        do {
+          cur = apply(cur, mv);
+          chain = false;
+          if (mv.captured.length) {
+            const next = capturesFor(cur, mv.to[0], mv.to[1]);
+            if (next.length) { mv = next[0]; chain = true; }
+          }
+        } while (chain);
+        board = cur;
+        lastMove = mv;
+        QA.sfx.move();
+        whiteToMove = true;
+        aiThinking = false;
+        draw();
+        updateHud();
+      }
+
+      function clickHandler(e) {
+        const rect = cv.getBoundingClientRect();
+        const x = Math.floor((e.clientX - rect.left) * (8*SQ / rect.width) / SQ);
+        const y = Math.floor((e.clientY - rect.top) * (8*SQ / rect.height) / SQ);
+        if (x >= 0 && x < 8 && y >= 0 && y < 8) tryClick(x, y);
+      }
+
+      return {
+        start() {
+          board = startBoard();
+          whiteToMove = true;
+          moves = 0; over = false; aiThinking = false;
+          selected = null; legalForSelected = []; lastMove = null;
+          cv.addEventListener('pointerdown', clickHandler);
+          draw();
+          updateHud();
+        },
+        getScore: () => scoreFromBoard(),
+        destroy() {
+          cv.removeEventListener('pointerdown', clickHandler);
+        },
+        _debug: {
+          board: () => board.map(r => r.slice()),
+          setBoard: (b) => { board = b.map(r => r.slice()); draw(); },
+          moves: () => allMoves(board, whiteToMove).length,
+          captures: () => allCaptures(board, whiteToMove).length,
+          forceEnd: () => { over = true; host.onEnd(scoreFromBoard(), { forced: true }); },
+          whiteToMove: () => whiteToMove,
+          apply: (from, to) => {
+            const caps = allCaptures(board, whiteToMove);
+            const pool = caps.length ? caps : allMoves(board, whiteToMove);
+            const m = pool.find(x => x.from[0] === from[0] && x.from[1] === from[1] && x.to[0] === to[0] && x.to[1] === to[1]);
+            if (m) applyUIMove(m);
+            return !!m;
+          },
+        },
+      };
+    }
+  });
+})();
+// Морской бой — 10×10, 4+3+3+2+2+2+1+1+1+1, ИИ (hunt/target).
+(function () {
+  const N = 10, CELL = 38;
+  const W = N * CELL * 2 + 30, H = N * CELL + 60;
+  const SHIPS = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1];
+
+  function blank() { return Array.from({ length: N }, () => Array(N).fill(0)); } // 0 empty,1 ship,2 hit,3 miss
+
+  function canPlace(b, x, y, len, horiz) {
+    for (let i = 0; i < len; i++) {
+      const nx = horiz ? x + i : x, ny = horiz ? y : y + i;
+      if (nx < 0 || nx >= N || ny < 0 || ny >= N) return false;
+      // запрет соседства
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const ax = nx + dx, ay = ny + dy;
+        if (ax < 0 || ax >= N || ay < 0 || ay >= N) continue;
+        if (b[ay][ax]) return false;
+      }
+    }
+    return true;
+  }
+
+  function randomPlace(b, len) {
+    for (let t = 0; t < 200; t++) {
+      const horiz = Math.random() < 0.5;
+      const x = Math.floor(Math.random() * N), y = Math.floor(Math.random() * N);
+      if (!canPlace(b, x, y, len, horiz)) continue;
+      for (let i = 0; i < len; i++) {
+        const nx = horiz ? x + i : x, ny = horiz ? y : y + i;
+        b[ny][nx] = 1;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function placeAll(b) {
+    for (const len of SHIPS) randomPlace(b, len);
+  }
+
+  function alive(b) {
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (b[y][x] === 1) return true;
+    return false;
+  }
+
+  GB.register({
+    id: 'battleship',
+    name: 'Морской бой',
+    icon: '⚓',
+    create(stage, host) {
+      const cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      stage.appendChild(cv);
+      const ctx = cv.getContext('2d');
+
+      let my = blank(), enemy = blank();
+      let myHits = blank(), enemyHits = blank(); // мои выстрелы по врагу, выстрелы врага по мне
+      let enemyQueue = [];
+      let over = false;
+      let shots = 0, hits = 0;
+
+      function updateHud() {
+        host.onHud(
+          'Выстрелов: <b>' + shots + '</b> · Попаданий: <b>' + hits + '</b>' +
+          ' · Врагов: <b>' + countAlive(enemy) + '</b>' +
+          ' · Моих: <b>' + countAlive(my) + '</b>'
+        );
+      }
+
+      function countAlive(b) {
+        let n = 0;
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (b[y][x] === 1) n++;
+        return n;
+      }
+
+      function draw() {
+        ctx.fillStyle = '#050510';
+        ctx.fillRect(0, 0, W, H);
+        // заголовки
+        ctx.fillStyle = '#2ecc71';
+        ctx.font = 'bold 13px Consolas';
+        ctx.textAlign = 'center';
+        ctx.fillText('ВАШ ФЛОТ', CELL*N/2 + 10, 22);
+        ctx.fillStyle = '#58a6ff';
+        ctx.fillText('ФЛОТ ВРАГА', CELL*N + CELL*N/2 + 20, 22);
+
+        drawGrid(10, 30, myHits, false);
+        drawGrid(CELL*N + 20, 30, enemyHits, true);
+
+        // мой флот: показываем корабли + попадания врага
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          const px = 10 + x*CELL, py = 30 + y*CELL;
+          if (my[y][x] === 1) {
+            ctx.fillStyle = 'rgba(46,204,113,.4)';
+            ctx.fillRect(px+3, py+3, CELL-6, CELL-6);
+          }
+          if (myHits[y][x] === 2) { // hit
+            ctx.fillStyle = '#e04040';
+            ctx.beginPath(); ctx.arc(px+CELL/2, py+CELL/2, CELL*0.25, 0, 7); ctx.fill();
+          } else if (myHits[y][x] === 3) {
+            ctx.fillStyle = '#58a6ff';
+            ctx.beginPath(); ctx.arc(px+CELL/2, py+CELL/2, CELL*0.12, 0, 7); ctx.fill();
+          }
+        }
+        // поле врага
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          const px = CELL*N + 20 + x*CELL, py = 30 + y*CELL;
+          if (enemyHits[y][x] === 2) {
+            ctx.fillStyle = '#e04040';
+            ctx.beginPath(); ctx.arc(px+CELL/2, py+CELL/2, CELL*0.25, 0, 7); ctx.fill();
+          } else if (enemyHits[y][x] === 3) {
+            ctx.fillStyle = '#8b949e';
+            ctx.beginPath(); ctx.arc(px+CELL/2, py+CELL/2, CELL*0.12, 0, 7); ctx.fill();
+          }
+        }
+      }
+
+      function drawGrid(ox, oy, hits, isEnemy) {
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          const px = ox + x*CELL, py = oy + y*CELL;
+          ctx.strokeStyle = '#30363d';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px, py, CELL, CELL);
+        }
+      }
+
+      function shoot(x, y) {
+        if (over) return;
+        if (enemyHits[y][x] !== 0) { QA.sfx.bad(); return; }
+        shots++;
+        if (enemy[y][x] === 1) {
+          enemyHits[y][x] = 2; hits++;
+          QA.sfx.step();
+          if (!alive(enemy)) {
+            over = true;
+            QA.sfx.win();
+            host.onEnd(scoreFromBoard(), {});
+            return;
+          }
+        } else {
+          enemyHits[y][x] = 3;
+          QA.sfx.move();
+        }
+        updateHud();
+        setTimeout(enemyTurn, 350);
+        draw();
+      }
+
+      function enemyTurn() {
+        if (over) return;
+        let target = null;
+        // hunt: если есть очередь — стреляем рядом
+        while (enemyQueue.length && !target) {
+          const [qx, qy] = enemyQueue.shift();
+          if (qx < 0 || qx >= N || qy < 0 || qy >= N) continue;
+          if (myHits[qy][qx] !== 0) continue;
+          target = [qx, qy];
+        }
+        // иначе случайно
+        if (!target) {
+          const free = [];
+          for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (myHits[y][x] === 0) free.push([x, y]);
+          if (!free.length) return;
+          target = free[Math.floor(Math.random() * free.length)];
+        }
+        const [tx, ty] = target;
+        if (my[ty][tx] === 1) {
+          myHits[ty][tx] = 2;
+          // в очередь — соседи
+          for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) enemyQueue.push([tx+dx, ty+dy]);
+          QA.sfx.bad();
+          if (!alive(my)) {
+            over = true;
+            QA.sfx.lose();
+            host.onEnd(scoreFromBoard(), {});
+            return;
+          }
+        } else {
+          myHits[ty][tx] = 3;
+          QA.sfx.move();
+        }
+        updateHud();
+        draw();
+      }
+
+      function scoreFromBoard() {
+        return hits * 10 + (over && !alive(enemy) ? 100 : 0);
+      }
+
+      function reset() {
+        my = blank(); enemy = blank();
+        myHits = blank(); enemyHits = blank();
+        enemyQueue = []; over = false; shots = 0; hits = 0;
+        placeAll(my);
+        placeAll(enemy);
+        updateHud();
+        draw();
+      }
+
+      function clickHandler(e) {
+        if (over) return;
+        const rect = cv.getBoundingClientRect();
+        const cx = (e.clientX - rect.left) * (W / rect.width);
+        const cy = (e.clientY - rect.top) * (H / rect.height);
+        const gridX = CELL*N + 20;
+        if (cx < gridX || cx >= gridX + CELL*N) return;
+        if (cy < 30 || cy >= 30 + CELL*N) return;
+        const x = Math.floor((cx - gridX) / CELL);
+        const y = Math.floor((cy - 30) / CELL);
+        if (x >= 0 && x < N && y >= 0 && y < N) shoot(x, y);
+      }
+
+      return {
+        start() {
+          reset();
+          cv.addEventListener('pointerdown', clickHandler);
+        },
+        getScore: () => scoreFromBoard(),
+        destroy() {
+          cv.removeEventListener('pointerdown', clickHandler);
+        },
+        _debug: {
+          shoot, reset, getScore: () => scoreFromBoard(),
+          enemy: () => enemy.map(r => r.slice()),
+          my: () => my.map(r => r.slice()),
+          autoWin: () => {
+            for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+              if (enemy[y][x] === 1) { enemyHits[y][x] = 2; hits++; }
+            }
+            over = true; host.onEnd(scoreFromBoard(), {});
+          },
+        },
+      };
+    }
+  });
+})();
+// Snake — классика, 20×20, еда, рост, ускорение.
+(function () {
+  const N = 20, CELL = 24;
+  const W = N * CELL, H = N * CELL;
+
+  GB.register({
+    id: 'snake',
+    name: 'Змейка',
+    icon: '≈',
+    create(stage, host) {
+      const cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      stage.appendChild(cv);
+      const ctx = cv.getContext('2d');
+
+      let snake = [];
+      let dir = [1, 0];
+      let nextDir = [1, 0];
+      let food = [10, 10];
+      let score = 0;
+      let over = false;
+      let raf = null;
+      let acc = 0, lastTs = 0;
+      let stepInterval = 130;
+      let paused = false;
+
+      function reset() {
+        snake = [[10, 10], [9, 10], [8, 10]];
+        dir = [1, 0]; nextDir = [1, 0];
+        score = 0; over = false; stepInterval = 130;
+        placeFood();
+        updateHud();
+        draw();
+      }
+
+      function placeFood() {
+        for (let t = 0; t < 500; t++) {
+          const x = Math.floor(Math.random() * N), y = Math.floor(Math.random() * N);
+          if (!snake.some(([sx, sy]) => sx === x && sy === y)) { food = [x, y]; return; }
+        }
+      }
+
+      function step() {
+        dir = nextDir;
+        const [hx, hy] = snake[0];
+        const nx = hx + dir[0], ny = hy + dir[1];
+        if (nx < 0 || nx >= N || ny < 0 || ny >= N) return endGame();
+        if (snake.some(([sx, sy]) => sx === nx && sy === ny)) return endGame();
+        snake.unshift([nx, ny]);
+        if (nx === food[0] && ny === food[1]) {
+          score += 10;
+          QA.sfx.good();
+          placeFood();
+          if (stepInterval > 60) stepInterval -= 3;
+          updateHud();
+        } else {
+          snake.pop();
+        }
+      }
+
+      function endGame() {
+        over = true;
+        QA.sfx.lose();
+        host.onEnd(score, { length: snake.length });
+      }
+
+      function updateHud() {
+        host.onHud('Очки: <b>' + score + '</b> · Длина: <b>' + snake.length + '</b>');
+      }
+
+      function draw() {
+        ctx.fillStyle = '#050510';
+        ctx.fillRect(0, 0, W, H);
+        // сетка
+        ctx.strokeStyle = 'rgba(48,54,61,.25)';
+        for (let i = 1; i < N; i++) {
+          ctx.beginPath(); ctx.moveTo(i*CELL, 0); ctx.lineTo(i*CELL, H); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, i*CELL); ctx.lineTo(W, i*CELL); ctx.stroke();
+        }
+        // еда
+        ctx.fillStyle = '#e04040';
+        ctx.beginPath();
+        ctx.arc(food[0]*CELL + CELL/2, food[1]*CELL + CELL/2, CELL*0.35, 0, 7);
+        ctx.fill();
+        // змейка
+        for (let i = 0; i < snake.length; i++) {
+          const [x, y] = snake[i];
+          ctx.fillStyle = i === 0 ? '#2ecc71' : '#1a8a4a';
+          ctx.fillRect(x*CELL + 1, y*CELL + 1, CELL - 2, CELL - 2);
+          if (i === 0) {
+            ctx.fillStyle = 'rgba(255,255,255,.4)';
+            ctx.fillRect(x*CELL + 4, y*CELL + 4, 4, 4);
+          }
+        }
+      }
+
+      function tick(ts) {
+        raf = requestAnimationFrame(tick);
+        if (over) return;
+        if (!lastTs) lastTs = ts;
+        const dt = ts - lastTs; lastTs = ts;
+        if (paused) return;
+        acc += dt;
+        while (acc >= stepInterval) {
+          acc -= stepInterval;
+          step();
+          if (over) return;
+        }
+        draw();
+      }
+
+      const keyHandler = (e) => {
+        if (over) return;
+        const k = e.key.toLowerCase();
+        if (k === 'arrowleft' || k === 'a' || k === 'ф') { if (dir[0] !== 1) nextDir = [-1, 0]; }
+        else if (k === 'arrowright' || k === 'd' || k === 'в') { if (dir[0] !== -1) nextDir = [1, 0]; }
+        else if (k === 'arrowup' || k === 'w' || k === 'ц') { if (dir[1] !== 1) nextDir = [0, -1]; }
+        else if (k === 'arrowdown' || k === 's' || k === 'ы') { if (dir[1] !== -1) nextDir = [0, 1]; }
+        else return;
+        e.preventDefault();
+      };
+
+      return {
+        start() {
+          reset();
+          document.addEventListener('keydown', keyHandler);
+          QA.onPause((p) => { paused = p; lastTs = 0; });
+          raf = requestAnimationFrame(tick);
+        },
+        getScore: () => score,
+        destroy() {
+          if (raf) cancelAnimationFrame(raf);
+          document.removeEventListener('keydown', keyHandler);
+        },
+        _debug: { getScore: () => score, state: () => ({ snake: snake.map(x=>x.slice()), food: food.slice(), dir: dir.slice() }), endGame: () => endGame(), setDir: (d) => { nextDir = d; } },
+      };
+    }
+  });
+})();
+// 2048 — 4×4, слияния, анимация не нужна, свайпы/стрелки.
+(function () {
+  const N = 4, CELL = 110, GAP = 8;
+  const W = N * CELL + (N + 1) * GAP, H = W;
+
+  const COLORS = {
+    0:    '#1a1e28',
+    2:    '#3a4a5a',
+    4:    '#4a5a6a',
+    8:    '#4a6a8a',
+    16:   '#5a7a9a',
+    32:   '#6a8aaa',
+    64:   '#7a9aba',
+    128:  '#a0b0c0',
+    256:  '#b0c0d0',
+    512:  '#c0d0e0',
+    1024: '#d0e0f0',
+    2048: '#2ecc71',
+  };
+
+  GB.register({
+    id: '2048',
+    name: '2048',
+    icon: '⊞',
+    create(stage, host) {
+      const cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      stage.appendChild(cv);
+      const ctx = cv.getContext('2d');
+
+      let grid = Array.from({ length: N }, () => Array(N).fill(0));
+      let score = 0;
+      let over = false;
+      let won = false;
+
+      function spawn() {
+        const empties = [];
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (grid[y][x] === 0) empties.push([x, y]);
+        if (!empties.length) return false;
+        const [x, y] = empties[Math.floor(Math.random() * empties.length)];
+        grid[y][x] = Math.random() < 0.9 ? 2 : 4;
+        return true;
+      }
+
+      function updateHud() {
+        host.onHud('Очки: <b>' + score + '</b> · Максимум: <b>' + maxTile() + '</b>');
+      }
+
+      function maxTile() {
+        let m = 0;
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (grid[y][x] > m) m = grid[y][x];
+        return m;
+      }
+
+      function move(dir) { // 'L','R','U','D'
+        let moved = false;
+        const merged = Array.from({ length: N }, () => Array(N).fill(false));
+        const line = [];
+        const newGrid = grid.map(r => r.slice());
+
+        if (dir === 'L' || dir === 'R') {
+          for (let y = 0; y < N; y++) {
+            const row = [];
+            for (let i = 0; i < N; i++) {
+              const x = dir === 'L' ? i : N - 1 - i;
+              if (grid[y][x]) row.push({ v: grid[y][x], x, y });
+            }
+            const mergedRow = [];
+            for (let i = 0; i < row.length; i++) {
+              if (i + 1 < row.length && row[i].v === row[i + 1].v && !mergedRow.merged) {
+                mergedRow.push({ v: row[i].v * 2, merged: true });
+                score += row[i].v * 2;
+                i++;
+              } else {
+                mergedRow.push({ v: row[i].v, merged: false });
+              }
+            }
+            for (let i = 0; i < N; i++) {
+              const x = dir === 'L' ? i : N - 1 - i;
+              const v = i < mergedRow.length ? mergedRow[i].v : 0;
+              if (newGrid[y][x] !== v) moved = true;
+              newGrid[y][x] = v;
+            }
+          }
+        } else {
+          for (let x = 0; x < N; x++) {
+            const col = [];
+            for (let i = 0; i < N; i++) {
+              const y = dir === 'U' ? i : N - 1 - i;
+              if (grid[y][x]) col.push({ v: grid[y][x], x, y });
+            }
+            const mergedCol = [];
+            for (let i = 0; i < col.length; i++) {
+              if (i + 1 < col.length && col[i].v === col[i + 1].v) {
+                mergedCol.push({ v: col[i].v * 2 });
+                score += col[i].v * 2;
+                i++;
+              } else {
+                mergedCol.push({ v: col[i].v });
+              }
+            }
+            for (let i = 0; i < N; i++) {
+              const y = dir === 'U' ? i : N - 1 - i;
+              const v = i < mergedCol.length ? mergedCol[i].v : 0;
+              if (newGrid[y][x] !== v) moved = true;
+              newGrid[y][x] = v;
+            }
+          }
+        }
+        if (moved) {
+          grid = newGrid;
+          QA.sfx.move();
+          if (!spawn()) { checkEnd(); }
+          if (!won && maxTile() >= 2048) { won = true; QA.sfx.win(); }
+          if (!hasMoves()) checkEnd();
+          updateHud();
+          draw();
+        }
+      }
+
+      function hasMoves() {
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          if (grid[y][x] === 0) return true;
+          if (x + 1 < N && grid[y][x] === grid[y][x + 1]) return true;
+          if (y + 1 < N && grid[y][x] === grid[y + 1][x]) return true;
+        }
+        return false;
+      }
+
+      function checkEnd() {
+        if (!hasMoves()) {
+          over = true;
+          QA.sfx.lose();
+          host.onEnd(score, { maxTile: maxTile() });
+        }
+      }
+
+      function draw() {
+        ctx.fillStyle = '#0a0a12';
+        ctx.fillRect(0, 0, W, H);
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          const px = GAP + x * (CELL + GAP), py = GAP + y * (CELL + GAP);
+          const v = grid[y][x];
+          ctx.fillStyle = COLORS[v] || '#2ecc71';
+          ctx.fillRect(px, py, CELL, CELL);
+          if (v) {
+            ctx.fillStyle = v >= 128 ? '#0a0a12' : '#f0f0f0';
+            ctx.font = 'bold ' + (v >= 1024 ? 34 : v >= 128 ? 40 : 46) + 'px Consolas';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(v), px + CELL/2, py + CELL/2 + 2);
+          }
+        }
+      }
+
+      const keyHandler = (e) => {
+        if (over) return;
+        const k = e.key.toLowerCase();
+        let d = null;
+        if (k === 'arrowleft' || k === 'a' || k === 'ф') d = 'L';
+        else if (k === 'arrowright' || k === 'd' || k === 'в') d = 'R';
+        else if (k === 'arrowup' || k === 'w' || k === 'ц') d = 'U';
+        else if (k === 'arrowdown' || k === 's' || k === 'ы') d = 'D';
+        if (d) { e.preventDefault(); move(d); }
+      };
+
+      // touch
+      let touchStart = null;
+      const onDown = (e) => { if (e.touches[0]) touchStart = [e.touches[0].clientX, e.touches[0].clientY]; };
+      const onUp = (e) => {
+        if (!touchStart || !e.changedTouches[0]) return;
+        const [sx, sy] = touchStart;
+        const dx = e.changedTouches[0].clientX - sx;
+        const dy = e.changedTouches[0].clientY - sy;
+        if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
+        if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 'R' : 'L');
+        else move(dy > 0 ? 'D' : 'U');
+        touchStart = null;
+      };
+
+      return {
+        start() {
+          grid = Array.from({ length: N }, () => Array(N).fill(0));
+          score = 0; over = false; won = false;
+          spawn(); spawn();
+          document.addEventListener('keydown', keyHandler);
+          cv.addEventListener('touchstart', onDown, { passive: true });
+          cv.addEventListener('touchend', onUp, { passive: true });
+          updateHud();
+          draw();
+        },
+        getScore: () => score,
+        destroy() {
+          document.removeEventListener('keydown', keyHandler);
+          cv.removeEventListener('touchstart', onDown);
+          cv.removeEventListener('touchend', onUp);
+        },
+        _debug: {
+          getScore: () => score,
+          grid: () => grid.map(r => r.slice()),
+          setGrid: (g) => { grid = g.map(r => r.slice()); draw(); updateHud(); },
+          move: (d) => move(d),
+          hasMoves: () => hasMoves(),
+          forceEnd: () => { over = true; host.onEnd(score, {}); },
+        },
+      };
+    }
+  });
+})();
+</script>
+</body>
+</html>

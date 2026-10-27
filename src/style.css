@@ -1,0 +1,189 @@
+/* GameBox CRT — палитра ROADMAP_TEMPLATE v2.0 */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0a12;
+  --panel: #161b22;
+  --fg: #c9d1d9;
+  --phos: #2ecc71;
+  --acc: #58a6ff;
+  --warn: #d29922;
+  --err: #f85149;
+  --bord: #30363d;
+  --dim: #8b949e;
+}
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.5 Consolas, "Courier New", monospace;
+  overflow: hidden;
+  user-select: none;
+}
+#app {
+  display: flex; flex-direction: column;
+  height: 100vh;
+}
+header {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--bord);
+  background: var(--panel);
+  display: flex; align-items: center; gap: 16px;
+  flex: 0 0 auto;
+}
+header h1 {
+  font-size: 16px; letter-spacing: 4px; color: var(--phos);
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(46,204,113,.4);
+}
+header .hud {
+  margin-left: auto; display: flex; gap: 12px; align-items: center;
+  font-size: 13px; color: var(--dim);
+}
+header .hud b { color: var(--phos); }
+header button {
+  font: inherit; padding: 4px 12px;
+  background: transparent; color: var(--fg);
+  border: 1px solid var(--bord); border-radius: 3px;
+  cursor: pointer;
+}
+header button:hover { border-color: var(--acc); color: var(--acc); }
+
+main {
+  flex: 1 1 auto; display: flex;
+  overflow: hidden;
+}
+#screen-menu {
+  flex: 1; padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+  align-content: start;
+  overflow-y: auto;
+}
+#screen-menu.hidden { display: none; }
+.tile {
+  background: var(--panel);
+  border: 1px solid var(--bord);
+  border-radius: 8px;
+  padding: 16px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s, transform .1s;
+}
+.tile:hover { border-color: var(--phos); transform: translateY(-2px); }
+.tile .icon {
+  font-size: 32px; color: var(--phos);
+  margin-bottom: 8px; display: block;
+  min-height: 40px;
+}
+.tile .name { font-weight: 700; letter-spacing: 1px; }
+.tile .best {
+  margin-top: 6px; font-size: 11px; color: var(--dim);
+}
+.tile .best b { color: var(--acc); }
+
+#screen-game {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+}
+#screen-game.on { display: flex; }
+#screen-menu.hidden ~ #screen-game.on {
+  display: flex;
+}
+#game-bar {
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--bord);
+  background: var(--panel);
+  display: flex; align-items: center; gap: 12px;
+  flex: 0 0 auto;
+}
+#game-bar .title { font-weight: 700; color: var(--phos); }
+#game-bar .hud { margin-left: auto; display: flex; gap: 16px; font-size: 12px; color: var(--dim); }
+#game-bar .hud b { color: var(--fg); }
+#game-bar button {
+  font: inherit; padding: 3px 10px;
+  background: transparent; color: var(--fg);
+  border: 1px solid var(--bord); border-radius: 3px;
+  cursor: pointer;
+}
+#game-bar button:hover { border-color: var(--acc); color: var(--acc); }
+#game-stage {
+  flex: 1 1 auto;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  padding: 10px;
+  position: relative;
+}
+#game-stage canvas {
+  max-width: 100%;
+  max-height: 100%;
+  border: 1px solid var(--bord);
+  border-radius: 6px;
+  background: #050510;
+  image-rendering: pixelated;
+  touch-action: none;
+}
+/* Верхний слой: лидерборд */
+#overlay {
+  position: absolute; inset: 0;
+  background: rgba(10,10,18,.92);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 100;
+}
+#overlay.on { display: flex; }
+#overlay .box {
+  background: var(--panel);
+  border: 1px solid var(--bord);
+  border-radius: 8px;
+  padding: 20px 28px;
+  min-width: 320px;
+  max-width: 90vw;
+}
+#overlay .box h2 {
+  color: var(--phos); font-size: 18px; letter-spacing: 4px;
+  text-align: center; margin-bottom: 12px;
+}
+#overlay .box table { width: 100%; font-size: 13px; border-collapse: collapse; }
+#overlay .box th, #overlay .box td { padding: 4px 10px; text-align: left; }
+#overlay .box th { color: var(--dim); border-bottom: 1px solid var(--bord); }
+#overlay .box tr.me td { color: var(--phos); }
+#overlay .box .actions {
+  margin-top: 16px; text-align: center; display: flex; gap: 8px; justify-content: center;
+}
+#overlay .box .actions button {
+  font: inherit; padding: 6px 16px;
+  background: transparent; color: var(--phos);
+  border: 1px solid var(--phos); border-radius: 3px; cursor: pointer;
+}
+#overlay .box .actions button:hover { background: rgba(46,204,113,.12); }
+
+/* ПАУЗА */
+body.paused::after {
+  content: "ПАУЗА";
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55);
+  color: var(--phos);
+  font: 700 48px Consolas, monospace;
+  letter-spacing: 16px;
+  z-index: 200;
+  pointer-events: none;
+}
+
+/* МОБИЛЬНЫЙ */
+@media (max-width: 640px) {
+  header { padding: 6px 10px; gap: 8px; }
+  header h1 { font-size: 13px; letter-spacing: 2px; }
+  header .hud { font-size: 11px; gap: 6px; }
+  header button { padding: 3px 8px; font-size: 12px; }
+  #screen-menu { padding: 10px; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
+  .tile { padding: 10px 6px; }
+  .tile .icon { font-size: 24px; min-height: 28px; margin-bottom: 4px; }
+  .tile .name { font-size: 12px; }
+  #game-bar { padding: 4px 8px; gap: 6px; }
+  #game-bar .title { font-size: 12px; }
+  #game-bar .hud { font-size: 10px; gap: 8px; }
+  #game-stage { padding: 4px; }
+}

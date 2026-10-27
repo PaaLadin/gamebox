@@ -1,0 +1,17 @@
+# build artefacts
+build/app/
+build/node_modules/
+build/dist/
+android/node_modules/
+android/android/
+android/www/
+
+# temp
+*.log
+*.bak*
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db

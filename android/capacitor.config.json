@@ -1,0 +1,7 @@
+{
+  "appId": "com.deepseek.gamebox",
+  "appName": "GameBox",
+  "webDir": "www",
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": true }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "gamebox",
+  "version": "1.0.0",
+  "description": "GameBox - 8 games collection",
+  "main": "main.js",
+  "author": "PaaLadin",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "33.4.11",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "com.deepseek.gamebox",
+    "productName": "GameBox",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "preload.js", "app/**/*"],
+    "win": { "target": ["dir"] }
+  }
+}
